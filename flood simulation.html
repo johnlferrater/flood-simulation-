@@ -1,1 +1,69 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+def flash_flood_simulation(intensity):
+    """
+    Simulate a flash flood with adjustable intensity (1–10).
+    """
+    # Simulation parameters
+    max_time = 50              # total number of frames (seconds)
+    water_levels = [0]         # water height data
+    time_points = [0]          # time steps
+
+    # Create figure with two subplots
+    fig, (ax_flood, ax_graph) = plt.subplots(2, 1, figsize=(6, 8))
+    fig.suptitle("🌧️ Flash Flood Simulation 🌧️", fontsize=16)
+
+    # Flood area setup
+    ax_flood.set_xlim(0, 10)
+    ax_flood.set_ylim(0, 10)
+    ax_flood.set_title("Flood Rising Animation")
+    ground = ax_flood.axhline(y=0, color='saddlebrown', linewidth=4)
+    water = ax_flood.fill_between([0, 10], 0, 0, color='deepskyblue')
+
+    # Graph setup
+    ax_graph.set_xlim(0, max_time)
+    ax_graph.set_ylim(0, 10)
+    ax_graph.set_xlabel("Time (s)")
+    ax_graph.set_ylabel("Water Level (m)")
+    ax_graph.set_title("Water Level vs Time")
+    (line,) = ax_graph.plot([], [], color='blue', linewidth=2)
+
+    # Simulation function
+    def update(frame):
+        nonlocal water, water_levels, time_points
+        ax_flood.collections.clear()  # remove old water fill
+
+        # Simulate rising water (rate depends on intensity)
+        rise_rate = intensity * 0.1
+        noise = np.random.uniform(0, 0.2 * intensity)
+        new_level = min(10, water_levels[-1] + rise_rate + noise)
+
+        water_levels.append(new_level)
+        time_points.append(frame)
+
+        # Update flood fill
+        water = ax_flood.fill_between([0, 10], 0, new_level, color='deepskyblue')
+
+        # Update graph line
+        line.set_data(time_points, water_levels)
+        return water, line
+
+    # Animate
+    ani = FuncAnimation(fig, update, frames=np.arange(1, max_time + 1), interval=300, repeat=False)
+    plt.tight_layout()
+    plt.show()
+
+
+# --- MAIN ---
+if __name__ == "__main__":
+    try:
+        intensity = int(input("Enter flood intensity (1-10): "))
+        if 1 <= intensity <= 10:
+            flash_flood_simulation(intensity)
+        else:
+            print("Please enter a number between 1 and 10.")
+    except ValueError:
+        print("Invalid input. Please enter a number between 1 and 10.")
 
