@@ -1,0 +1,15 @@
+
+fig, ax = plt.subplots(figsize=(6,4))
+ax.set_xlim(0, 10)
+ax.set_ylim(0, max(levels) + 10)
+ax.set_xticks([])
+ax.set_yticks(np.linspace(0, max(levels)+10, 6))
+bar = ax.bar(5, 0, width=5)
+
+def update(frame):
+    bar[0].set_height(levels[frame])
+    ax.set_title(f"Minute: {frame}  |  Water level: {levels[frame]:.1f} mm")
+    return bar
+
+ani = animation.FuncAnimation(fig, update, frames=len(levels), interval=100, blit=False)
+HTML(ani.to_jshtml())  # displays inline in Colab
