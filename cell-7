@@ -1,0 +1,29 @@
+# Cell 7 - Stochastic / variable rainfall example
+def random_rain_profile(duration_min=180, dt_min=1, base=0.5, spikes=3, spike_intensity=12):
+    steps = int(duration_min/dt_min)
+    rng = np.random.default_rng(42)
+    rain = np.full(steps, base)
+    for _ in range(spikes):
+        peak = rng.integers(0, steps)
+        width = rng.integers(5, 30)
+        profile = spike_intensity * np.exp(-0.5 * ((np.arange(steps)-peak)/width)**2)
+        rain += profile
+    return rain
+
+# Create random rainfall profile
+rain_profile = random_rain_profile(duration_min=240, spikes=4, spike_intensity=15)
+t, lev_random = simulate_flood(duration_min=240, dt_min=1, rainfall_rate_mm_per_min=rain_profile,
+                               absorption_rate_mm_per_min=2.0, drainage_rate_mm_per_min=1.2, runoff_coeff=0.)
+
+# Plot rainfall and resulting water level
+fig, ax1 = plt.subplots(figsize=(10,4))
+ax1.plot(t, rain_profile, label='rainfall (mm/min)', alpha=0.6)
+ax1.set_ylabel('Rainfall (mm/min)')
+ax2 = ax1.twinx()
+ax2.plot(t, lev_random, color='tab:orange', label='water level (mm)', lw=2)
+ax2.set_ylabel('Water level (mm)')
+ax1.set_xlabel('Time (minutes)')
+ax1.set_title('Stochastic Rainfall Profile and Water Level')
+ax1.grid(True)
+fig.tight_layout()
+plt.show()
