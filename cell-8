@@ -1,0 +1,24 @@
+# Cell 8 - Simple 3D surface (final water height over an area)
+from mpl_toolkits.mplot3d import Axes3D
+
+# Make a grid representing an area (e.g., 50x50)
+nx, ny = 50, 50
+x = np.linspace(0, 100, nx)
+y = np.linspace(0, 100, ny)
+X, Y = np.meshgrid(x, y)
+
+# Make a simple ground elevation (sloping plane + a depression)
+ground = 0.02 * X + 0.01 * Y - 5 * np.exp(-((X-50)**2 + (Y-30)**2) / (2*200))
+
+# Spread the final water level as a shallow pool proportional to simulated level
+final_level = levels[-1] / 10.0  # scale factor for visualization
+water_surface = np.maximum(0, final_level - ground)  # water depth above ground
+
+fig = plt.figure(figsize=(8,6))
+ax = fig.add_subplot(111, projection='3d')
+ax.plot_surface(X, Y, ground + water_surface, linewidth=0, antialiased=False)
+ax.set_title('3D View: Ground + Water Surface (illustrative)')
+ax.set_xlabel('X (m)')
+ax.set_ylabel('Y (m)')
+ax.set_zlabel('Elevation (m)')
+plt.show()
