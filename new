@@ -1,0 +1,214 @@
+import numpy as np
+import matplotlib
+import os
+
+try:
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation
+except Exception:
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation
+
+# Optional DEM import
+try:
+    import rasterio
+    HAS_RASTERIO = True
+except ImportError:
+    HAS_RASTERIO = False
+
+
+# ======================================================================
+# LOAD TERRAIN FROM DEM (GeoTIFF)
+# ======================================================================
+def load_dem_river_profile(path, samples=200):
+    """
+    Loads a real-world elevation map (DEM) and extracts a single
+    1D cross-section to use as river terrain.
+    """
+    if not HAS_RASTERIO:
+        raise RuntimeError("Rasterio not installed. Cannot load DEM.")
+
+    if not os.path.exists(path):
+        raise RuntimeError(f"DEM file not found: {path}")
+
+    with rasterio.open(path) as dem:
+        data = dem.read(1).astype(float)
+
+    # Pick the central horizontal cross-section
+    y = data.shape[0] // 2
+    row = data[y, :]
+
+    # Smooth & sample
+    x = np.linspace(0, len(row) - 1, samples).astype(int)
+    terrain = row[x]
+
+    # Normalize elevation
+    terrain = terrain - terrain.min()
+    terrain /= terrain.max()
+    terrain *= 4  # Scale to realistic height
+
+    return terrain
+
+
+# ======================================================================
+# BOAT PHYSICS MODEL
+# ======================================================================
+class Boat:
+    def __init__(self):
+        self.x = 2.0        # starting position
+        self.y = 0.0        # determined by water height
+        self.vx = 0.0       # horizontal velocity
+        self.mass = 1.2
+        self.drag = 0.25    # water drag
+        self.thrust = 0.18  # engine thrust
+        self.steering = 0.02  # left/right drift
+
+    def update(self, water_surface, current_speed, frame):
+        # Interpolate water surface
+        river_x = np.linspace(0, 20, len(water_surface))
+        self.y = np.interp(self.x, river_x, water_surface) + 0.1
+
+        # River pushes boat
+        self.vx += current_speed * 0.04
+
+        # Engine thrust
+        self.vx += self.thrust * 0.03
+
+        # Steering: boat wiggles slightly
+        self.x += np.sin(frame / 30) * self.steering
+
+        # Apply drag
+        self.vx *= (1 - self.drag * 0.05)
+
+        # Update position
+        self.x += self.vx
+
+        # Wrap around when reaching end
+        if self.x > 20:
+            self.x = 0
+        if self.x < 0:
+            self.x = 20
+
+
+# ======================================================================
+# MAIN SIMULATION
+# ======================================================================
+def river_simulation(flow_speed, dem_path=None):
+    """
+    Advanced river simulation with:
+    - Real elevation map terrain (optional)
+    - Boat physics
+    - River flow + velocity field
+    - Debris
+    """
+
+    samples = 200
+
+    # ---------------------------------------------------------
+    # Load DEM terrain OR fallback to synthetic terrain
+    # ---------------------------------------------------------
+    if dem_path and HAS_RASTERIO and os.path.exists(dem_path):
+        print("📡 Loading real elevation map...")
+        terrain = load_dem_river_profile(dem_path, samples=samples)
+    else:
+        print("🧱 Using synthetic terrain...")
+        x = np.linspace(0, 20, samples)
+        terrain = 2 + np.sin(x * 0.4) * 0.7 + np.sin(x * 1.2) * 0.3
+
+    river_x = np.linspace(0, 20, samples)
+
+    bank_left = terrain + 0.7
+    bank_right = terrain - 0.7
+
+    water_base = terrain - 0.3
+
+    # Velocity changes with depth
+    depth = terrain.max() - terrain
+    current_speed = flow_speed * (0.6 + 0.4 * depth / depth.max())
+
+    # Debris
+    debris_count = 30
+    debris_x = np.random.uniform(0, 20, debris_count)
+    debris_y = np.interp(debris_x, river_x, water_base)
+
+    # Boat
+    boat = Boat()
+
+    # ---------------------------------------------------------
+    # Plot setup
+    # ---------------------------------------------------------
+    fig, ax = plt.subplots(figsize=(13, 6))
+    fig.suptitle("🌍 REAL WORLD RIVER + 🚤 BOAT PHYSICS SIMULATION", fontsize=18)
+
+    ax.set_xlim(0, 20)
+    ax.set_ylim(terrain.min() - 1, terrain.max() + 1)
+
+    ax.set_xlabel("Distance along river")
+    ax.set_ylabel("Elevation")
+
+    # Terrain + banks
+    ax.plot(river_x, terrain, color="sienna", linewidth=2)
+    ax.plot(river_x, bank_left, color="darkgreen", linewidth=2)
+    ax.plot(river_x, bank_right, color="darkgreen", linewidth=2)
+
+    # dynamic water
+    water_poly = ax.fill_between(river_x, water_base, terrain, color="deepskyblue", alpha=0.5)
+
+    debris_plot = ax.scatter(debris_x, debris_y, s=40, color="white", edgecolors="black")
+
+    boat_plot, = ax.plot([boat.x], [boat.y], marker='^', markersize=14,
+                         color='red', markeredgecolor='black')
+
+    # ---------------------------------------------------------
+    # Animation update
+    # ---------------------------------------------------------
+    def update(frame):
+        nonlocal water_poly, debris_x, debris_y
+
+        ax.collections.clear()
+
+        # Water wave motion
+        wave = 0.15 * np.sin((river_x * 2 + frame / 4))
+        water_surface = water_base + wave
+
+        # Draw water
+        water_poly = ax.fill_between(river_x, water_surface, terrain,
+                                     color="deepskyblue", alpha=0.55)
+
+        # Move debris
+        debris_x += current_speed[:debris_count] * 0.04
+        debris_x = np.where(debris_x > 20, debris_x - 20, debris_x)
+        debris_y = np.interp(debris_x, river_x, water_surface)
+
+        debris_plot.set_offsets(np.c_[debris_x, debris_y])
+
+        # Update boat physics
+        boat.update(water_surface, current_speed.mean(), frame)
+        boat_plot.set_data([boat.x], [boat.y])
+
+        return water_poly, debris_plot, boat_plot
+
+    # Run animation
+    FuncAnimation(fig, update, frames=400, interval=60, repeat=True)
+
+    plt.tight_layout()
+    plt.show()
+
+
+# ======================================================================
+# MAIN
+# ======================================================================
+if __name__ == "__main__":
+    print("=== ADVANCED RIVER SIMULATION ===")
+    print("Optional: Provide a DEM (GeoTIFF) file for real-world terrain.")
+    dem_path = input("Enter DEM file path (or press Enter for synthetic): ").strip()
+
+    try:
+        speed = float(input("Enter river flow speed (0.5 – 5.0): "))
+        if 0.5 <= speed <= 5.0:
+            river_simulation(speed, dem_path if dem_path else None)
+        else:
+            print("Enter a value between 0.5 and 5.0.")
+    except ValueError:
+        print("Invalid input.")
