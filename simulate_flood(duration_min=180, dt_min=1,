@@ -1,0 +1,14 @@
+t, levels = simulate_flood(duration_min=180, dt_min=1,
+                           
+rainfall_rate_mm_per_min=6.0,
+absorption_rate_mm_per_min=2.0,
+drainage_rate_mm_per_min=1.2,
+runoff_coeff=0.8)
+
+plt.figure(figsize=(10,4))
+plt.plot(t, levels, lw=2)
+plt.xlabel("Time (minutes)")
+plt.ylabel("Surface water level (mm)")
+plt.title("Flood Simulation - Water Level Over Time (example)")
+plt.grid(True)
+plt.show()
