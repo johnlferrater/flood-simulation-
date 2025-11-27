@@ -1,0 +1,7 @@
+# Cell 5 - Save animation to a GIF file (Pillow)
+from matplotlib.animation import PillowWriter
+
+gif_path = "flood_simulation.gif"
+writergif = PillowWriter(fps=10)
+ani.save(gif_path, writer=writergif)
+print("Saved GIF to", gif_path)
