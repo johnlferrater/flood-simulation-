@@ -1,0 +1,23 @@
+# Cell 6 - Interactive sliders for quick experiment
+def interactive_sim(rain, absorb, drain, runcoef, duration):
+    t, lev = simulate_flood(duration_min=duration, dt_min=1,
+                            rainfall_rate_mm_per_min=rain,
+                            absorption_rate_mm_per_min=absorb,
+                            drainage_rate_mm_per_min=drain,
+                            runoff_coeff=runcoef)
+    plt.figure(figsize=(9,4))
+    plt.plot(t, lev, lw=2)
+    plt.xlabel("Time (minutes)")
+    plt.ylabel("Water level (mm)")
+    plt.title(f"rain={rain}mm/min  absorb={absorb}mm/min  drain={drain}mm/min  runcoef={runcoef}")
+    plt.grid(True)
+    plt.show()
+
+widgets.interact(
+    interactive_sim,
+    rain=widgets.FloatSlider(value=6.0, min=0.0, max=20.0, step=0.5),
+    absorb=widgets.FloatSlider(value=2.0, min=0.0, max=10.0, step=0.1),
+    drain=widgets.FloatSlider(value=1.2, min=0.0, max=10.0, step=0.1),
+    runcoef=widgets.FloatSlider(value=0.8, min=0.0, max=1.0, step=0.05),
+    duration=widgets.IntSlider(value=180, min=30, max=1440, step=30)
+)
