@@ -1,0 +1,44 @@
+
+def simulate_flood(duration_min=120,
+                   dt_min=1,
+                   rainfall_rate_mm_per_min=5.0,
+                   absorption_rate_mm_per_min=1.5,
+                   drainage_rate_mm_per_min=1.0,
+                   runoff_coeff=0.7):
+
+    steps = int(duration_min / dt_min)
+    t = np.arange(0, duration_min, dt_min)
+
+    
+    if np.isscalar(rainfall_rate_mm_per_min):
+        rainfall = np.full(steps, rainfall_rate_mm_per_min)
+    else:
+        rainfall = np.array(rainfall_rate_mm_per_min)[:steps]
+        if len(rainfall) < steps:
+            rainfall = np.pad(rainfall,
+                              (0, steps - len(rainfall)),
+                              'constant')
+
+    level = 0.0
+    levels = []
+
+    for i in range(steps):
+        
+        inflow = rainfall[i] * runoff_coeff
+
+    
+        absorbed = min(absorption_rate_mm_per_min * dt_min, inflow)
+        inflow_after_absorb = inflow - absorbed
+
+        
+        level += inflow_after_absorb * dt_min
+
+        
+        drained = min(drainage_rate_mm_per_min * dt_min, level)
+        level -= drained
+
+        level = max(level, 0.0)
+
+        levels.append(level)
+
+    return t, np.array(levels)
